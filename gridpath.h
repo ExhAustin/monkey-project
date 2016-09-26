@@ -1,0 +1,178 @@
+#include <cstdlib>
+#include <iostream>
+#include <utility> // std::pair
+
+using namespace std;
+
+// 2-D grid structure
+class Grid{
+public:
+	int width, height;
+	pair<int,int> inlet, outlet;
+	int score;
+
+	Grid(){};
+	~Grid();
+	void init(int,int,pair<int,int>,pair<int,int>);
+	void init(const Grid&);
+	char get(int x, int y) const{/*if(x<0||x>=height||y<0||y>=width) cout<<"FUCK"<<endl;*/ return tiles[x][y];};
+	void set(int x, int y, char c){/*if(x<0||x>=height||y<0||y>=width) cout<<"FUCK"<<endl;*/ tiles[x][y] = c;};
+
+protected:
+	char** tiles;
+
+private:
+	Grid(const Grid& G){init(G);};	// copy constructor
+	Grid& operator=(const Grid&);	// assignment operator
+};
+
+// Path is just another grid with a specified front node(leaf), parent, and liquid type(color)
+class Path: public Grid{
+public:
+	char color;
+	int parent;
+	pair<int,int> leaf;
+
+	Path(){};
+	~Path();
+	void init(const Grid&);
+	void init(const Path&);
+
+private:
+	Path(const Path& P){init(P);};	// copy constructor
+	Path& operator=(const Path&);	// assignment operator
+};
+
+//----------------Grid member functions
+// Destructor
+Grid::~Grid(){
+	for(int row=0; row<height; row++){
+		delete[] tiles[row];
+	}
+	delete[] tiles;
+}
+
+// Initialize
+void Grid::init(int w, int h, pair<int,int> i, pair<int,int> o){
+	width = w;
+	height = h;
+	inlet = i;
+	outlet = o;
+
+	score = 0;
+
+	tiles = new char*[height];
+	for(int row=0; row<height; row++){
+		tiles[row] = new char[width];
+	}
+}
+
+// Initialize with assignment
+void Grid::init(const Grid& G){
+	width = G.width;
+	height = G.height;
+	inlet = G.inlet;
+	outlet = G.outlet;
+
+	score = G.score;
+
+	tiles = new char*[height];
+	for(int i=0; i<height; i++){
+		tiles[i] = new char[width];
+
+		for(int j=0; j<width; j++){
+			set(i,j, G.get(i,j));
+		}
+	}
+}
+
+// Assignment operator
+Grid& Grid::operator=(const Grid& G){
+	width = G.width;
+	height = G.height;
+	inlet = G.inlet;
+	outlet = G.outlet;
+
+	score = G.score;
+
+	for(int i=0; i<height; i++){
+		for(int j=0; j<width; j++){
+			set(i,j, G.get(i,j));
+		}
+	}
+}
+
+//----------------Path member functions
+// Destructor
+Path::~Path(){
+	for(int row=0; row<height; row++){
+		//cout << "deleting row " << row << endl; //debug
+		delete[] tiles[row];
+	}
+	//cout << "deleting column" << endl; //debug
+	delete[] tiles;
+
+	//cout << "FUCK YOU" << endl; //debug
+}
+
+// Initialize with assignment (from Grid)
+void Path::init(const Grid& P){
+	width = P.width;
+	height = P.height;
+	inlet = P.inlet;
+	outlet = P.outlet;
+
+	score = P.score;
+
+	tiles = new char*[height];
+	for(int i=0; i<height; i++){
+		tiles[i] = new char[width];
+
+		for(int j=0; j<width; j++){
+			set(i,j, 'u');
+		}
+	}
+
+	leaf = inlet;
+}
+
+// Initialize with assignment
+void Path::init(const Path& P){
+	width = P.width;
+	height = P.height;
+	inlet = P.inlet;
+	outlet = P.outlet;
+
+	score = P.score;
+
+	tiles = new char*[height];
+	for(int i=0; i<height; i++){
+		tiles[i] = new char[width];
+
+		for(int j=0; j<width; j++){
+			set(i,j, P.get(i,j));
+		}
+	}
+
+	leaf = P.leaf;
+	color = P.color;
+}
+
+// Assignment operator
+Path& Path::operator=(const Path& P){
+	width = P.width;
+	height = P.height;
+	inlet = P.inlet;
+	outlet = P.outlet;
+
+	score = P.score;
+
+	for(int i=0; i<height; i++){
+		for(int j=0; j<width; j++){
+			set(i,j, P.get(i,j));
+		}
+	}
+
+	leaf = P.leaf;
+	color = P.color;
+}
