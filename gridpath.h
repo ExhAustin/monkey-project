@@ -17,6 +17,7 @@ public:
 	void init(const Grid&);
 	char get(int x, int y) const{/*if(x<0||x>=height||y<0||y>=width) cout<<"FUCK"<<endl;*/ return tiles[x][y];};
 	void set(int x, int y, char c){/*if(x<0||x>=height||y<0||y>=width) cout<<"FUCK"<<endl;*/ tiles[x][y] = c;};
+	bool operator<(const Grid&);
 
 protected:
 	char** tiles;
@@ -100,6 +101,11 @@ Grid& Grid::operator=(const Grid& G){
 			set(i,j, G.get(i,j));
 		}
 	}
+}
+
+// Score comparison
+bool Grid::operator<(const Grid& G){
+	return score < G.score;
 }
 
 //----------------Path member functions

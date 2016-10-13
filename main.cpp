@@ -13,24 +13,27 @@
 #include <iostream>
 #include <vector>
 #include <queue>	// std::queue, std::priority_queue
+#include <algorithm> // std::sort
 
 #include "gridpath.h"
 
+#define INFINITY 1e9
+
 using namespace std;
 
-class ScoreCompare{	// comparison class for path priority queue
-public:
-	bool operator() (const Path* A_ptr, const Path* B_ptr){return A_ptr->score > B_ptr->score;};	// min heap
-};
-
 void optimalFill(int, int, pair<int,int>, pair<int,int>, char**, int);
-void pathBFS(priority_queue<Path*, vector<Path*>, ScoreCompare>*,int,const Grid*,int);		// BFS path search
+void pathBFS(vector<Path*>*,int,const Grid*,int);		// BFS path search
 int pathScore(const Path*, const Grid*);	// score for a path (higher == better)
 void pathUpdate(const Path*, Grid*);		// updates a grid by tracing a path through it ('1' => 'x' or '0' => 'x')
+bool pathEqual(const Path* P_ptr1, const Path* P_ptr2, const Grid* G_ptr);	// checks if two paths are equal in effect
 void gridPrint(const Grid*);	// prints graphical representation of a grid
 void pathPrint(const Path*);	// prints graphical representation of a path
 Grid* gridPtrGen();		// allocates a Grid and returns a pointer to it
 Path* pathPtrGen(); 	// allocates a Path and returns a pointer to it
+
+struct compclass{
+  bool operator() (Grid* G_ptr1, Grid* G_ptr2) { return G_ptr1->score < G_ptr2->score;}
+} mycomp;
 
 int main(){
 	int height, width;
@@ -72,7 +75,7 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 	Grid *current_grid_ptr, *temp_grid_ptr;
 	vector<Grid*> current_grid_vec, next_grid_vec;
 
-	priority_queue<Path*, vector<Path*>, ScoreCompare> path_pqueue;
+	vector<Path*> path_pqueue;
 	vector<vector<Path*>*> history_vec;
 
 	int n_injects = 0;
@@ -100,6 +103,7 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 
 			// search for paths reaching outlet, and place K highest scoring paths into path_pqueue
 			cout << "BFS..." << endl; //debug
+			cout << path_pqueue.size() << endl;
 			pathBFS(&path_pqueue, K, current_grid_ptr, g);
 			cout << "BFS done." << endl; //debug
 		}
@@ -116,10 +120,12 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 		// add resulting paths to history
 		vector<Path*>* temp_path_vec_ptr = new vector<Path*>;
 
-		while( !path_pqueue.empty() ){
-			temp_path_vec_ptr->push_back(path_pqueue.top());
-			path_pqueue.pop();
+		sort(path_pqueue.begin(), path_pqueue.end(), mycomp);
+		
+		for(int i=0; i<path_pqueue.size(); i++){
+			temp_path_vec_ptr->push_back(path_pqueue.at(i));
 		}
+		path_pqueue.clear();
 
 		history_vec.push_back(temp_path_vec_ptr);
 
@@ -201,7 +207,7 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 // BFS path search
 //	(Begins with *current_grid_ptr, find every possible path, and place them into *path_pqueue_ptr)
 //	(Only keeps the K best paths in *path_pqueue_ptr)
-void pathBFS(priority_queue<Path*, vector<Path*>, ScoreCompare>* path_pqueue_ptr, int K, const Grid* current_grid_ptr, int parent_num){
+void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr, int parent_num){
 	Path *current_path_ptr, *temp_path_ptr;
 	queue<Path*> bfs_path_queue;
 
@@ -213,6 +219,8 @@ void pathBFS(priority_queue<Path*, vector<Path*>, ScoreCompare>* path_pqueue_ptr
 	int i_next, j_next;
 	int direction[4] = {1,0,-1,0};
 	int path_score;
+	int min_score, i_min;
+	bool duplicate;
 	char inlet_color, temp_char;
 	char color[2];
 
@@ -265,19 +273,50 @@ void pathBFS(priority_queue<Path*, vector<Path*>, ScoreCompare>* path_pqueue_ptr
 				current_path_ptr->score = current_grid_ptr->score + path_score;
 				current_path_ptr->parent = parent_num;
 
-				// push into path priority queue
-				if( path_pqueue_ptr->size() >= K ){
-					if(current_path_ptr->score > path_pqueue_ptr->top()->score){
-						delete path_pqueue_ptr->top();
-						path_pqueue_ptr->pop();
-						path_pqueue_ptr->push(current_path_ptr);
-					}else if(current_path_ptr->score < path_pqueue_ptr->top()->score){
-						delete current_path_ptr;
-					}else{
-						path_pqueue_ptr->push(current_path_ptr);
+				// preprocess path_pqueue
+				duplicate = false;
+				min_score = INFINITY;
+
+				for(int i=0; i<path_pqueue_ptr->size(); i++){
+					temp_path_ptr = path_pqueue_ptr->at(i);
+
+					// record min of pqueue
+					if( temp_path_ptr->score < min_score ){
+						min_score = temp_path_ptr->score;
+						i_min = i;
 					}
-				}else{
-					path_pqueue_ptr->push(current_path_ptr);
+
+					// check for duplicates (paths with same overall effects)
+					if(temp_path_ptr->parent == parent_num){
+						if( pathEqual(temp_path_ptr, current_path_ptr, current_grid_ptr) ){
+							duplicate = true;
+
+							if( temp_path_ptr->score < current_path_ptr->score ){
+								path_pqueue_ptr->at(i) = current_path_ptr;
+								delete temp_path_ptr;
+							}else{
+								delete current_path_ptr;
+							}
+
+							break;
+						}
+					}
+				}
+
+				// push into path priority queue
+				if( !duplicate ){
+					if( path_pqueue_ptr->size() >= K ){
+						if(current_path_ptr->score > path_pqueue_ptr->at(i_min)->score){
+							delete path_pqueue_ptr->at(i_min);
+							path_pqueue_ptr->at(i_min) = current_path_ptr;
+						}else if(current_path_ptr->score < path_pqueue_ptr->at(i_min)->score){
+							delete current_path_ptr;
+						}else{
+							path_pqueue_ptr->push_back(current_path_ptr);
+						}
+					}else{
+						path_pqueue_ptr->push_back(current_path_ptr);
+					}
 				}
 
 				continue;
@@ -354,6 +393,21 @@ void pathUpdate(const Path* P_ptr, Grid* G_ptr){
 	}
 
 	G_ptr->score = P_ptr->score;
+}
+
+// checks if two paths are equal in effect
+bool pathEqual(const Path* P_ptr1, const Path* P_ptr2, const Grid* G_ptr){
+	bool equal = true;
+
+	for(int i=0; i<G_ptr->height; i++){
+		for(int j=0; j<G_ptr->width; j++){
+			if( P_ptr1->get(i,j) != P_ptr2->get(i,j) && G_ptr->get(i,j) != 'x' ){
+				equal = false;
+			}
+		}
+	}
+
+	return equal;
 }
 
 // prints graphical representation of a grid
