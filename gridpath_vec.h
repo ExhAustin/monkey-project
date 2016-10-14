@@ -12,7 +12,6 @@ public:
 	int score;
 
 	Grid(){};
-	~Grid();
 	void init(int,int,pair<int,int>,pair<int,int>);
 	void init(const Grid&);
 	char get(int x, int y) const{/*if(x<0||x>=height||y<0||y>=width) cout<<"FUCK"<<endl;*/ return tiles[x][y];};
@@ -20,7 +19,7 @@ public:
 	bool operator<(const Grid&);
 
 protected:
-	char** tiles;
+	vector< vector<int> > tiles;
 
 private:
 	Grid(const Grid& G){init(G);};	// copy constructor
@@ -35,7 +34,6 @@ public:
 	pair<int,int> leaf;
 
 	Path(){};
-	~Path();
 	void init(const Grid&);
 	void init(const Path&);
 
@@ -45,14 +43,6 @@ private:
 };
 
 //----------------Grid member functions
-// Destructor
-Grid::~Grid(){
-	for(int row=0; row<height; row++){
-		delete[] tiles[row];
-	}
-	delete[] tiles;
-}
-
 // Initialize
 void Grid::init(int w, int h, pair<int,int> i, pair<int,int> o){
 	width = w;
@@ -62,9 +52,9 @@ void Grid::init(int w, int h, pair<int,int> i, pair<int,int> o){
 
 	score = 0;
 
-	tiles = new char*[height];
+	tiles.resize(height);
 	for(int row=0; row<height; row++){
-		tiles[row] = new char[width];
+		tiles[row].resize(width);
 	}
 }
 
@@ -77,10 +67,9 @@ void Grid::init(const Grid& G){
 
 	score = G.score;
 
-	tiles = new char*[height];
+	tiles.resize(height);
 	for(int i=0; i<height; i++){
-		tiles[i] = new char[width];
-
+		tiles[i].resize(width);
 		for(int j=0; j<width; j++){
 			set(i,j, G.get(i,j));
 		}
@@ -109,14 +98,6 @@ bool Grid::operator<(const Grid& G){
 }
 
 //----------------Path member functions
-// Destructor
-Path::~Path(){
-	for(int row=0; row<height; row++){
-		delete[] tiles[row];
-	}
-	delete[] tiles;
-}
-
 // Initialize with assignment (from Grid)
 void Path::init(const Grid& P){
 	width = P.width;
@@ -126,10 +107,9 @@ void Path::init(const Grid& P){
 
 	score = P.score;
 
-	tiles = new char*[height];
+	tiles.resize(height);
 	for(int i=0; i<height; i++){
-		tiles[i] = new char[width];
-
+		tiles[i].resize(width);
 		for(int j=0; j<width; j++){
 			set(i,j, 'u');
 		}
@@ -147,10 +127,9 @@ void Path::init(const Path& P){
 
 	score = P.score;
 
-	tiles = new char*[height];
+	tiles.resize(height);
 	for(int i=0; i<height; i++){
-		tiles[i] = new char[width];
-
+		tiles[i].resize(width);
 		for(int j=0; j<width; j++){
 			set(i,j, P.get(i,j));
 		}

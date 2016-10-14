@@ -15,14 +15,15 @@
 #include <queue>	// std::queue, std::priority_queue
 #include <algorithm> // std::sort
 
-#include "gridpath.h"
+#include "gridpath_vec.h"
 
 #define INFINITY 1e9
 
 using namespace std;
 
-void optimalFill(int, int, pair<int,int>, pair<int,int>, char**, int);
+vector<Path*>* optimalFill(const Grid*,int);
 void pathBFS(vector<Path*>*,int,const Grid*,int);		// BFS path search
+void solutionPrint(const Grid*, const vector<Path*>*);	// print optimal solution
 int pathScore(const Path*, const Grid*);	// score for a path (higher == better)
 void pathUpdate(const Path*, Grid*);		// updates a grid by tracing a path through it ('1' => 'x' or '0' => 'x')
 bool pathEqual(const Path* P_ptr1, const Path* P_ptr2, const Grid* G_ptr);	// checks if two paths are equal in effect
@@ -39,7 +40,9 @@ int main(){
 	int height, width;
 	pair<int,int> inlet, outlet;
 	char** objective_arr;
+	Grid objective;
 	int K;
+	vector<Path*>* solution_vec_ptr;
 
 	// read input data
 	cin >> height;
@@ -58,31 +61,6 @@ int main(){
 
 	cin >> K;
 
-	// run optimization
-	optimalFill(height, width, inlet, outlet, objective_arr, K);
-
-	// return memory and terminate
-	for(int i=0; i<height; i++){
-		delete objective_arr[i];
-	}
-	delete objective_arr;
-
-	return 0;
-}
-
-void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outlet, char** objective_arr, int K){
-	Grid objective;
-	Grid *current_grid_ptr, *temp_grid_ptr;
-	vector<Grid*> current_grid_vec, next_grid_vec;
-
-	vector<Path*> path_pqueue;
-	vector<vector<Path*>*> history_vec;
-
-	int n_injects = 0;
-	int parent_num;
-	char temp_char;
-	bool completed;
-
 	// initialize objective grid from input data
 	objective.init(height, width, inlet, outlet);
 	for(int i=0; i<height; i++){
@@ -91,11 +69,52 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 		}
 	}
 
-	// iteration
+	// run optimization
+	solution_vec_ptr = optimalFill(&objective, K);
+
+	// print solution
+	solutionPrint(&objective, solution_vec_ptr);
+
+	// return memory and terminate
+	for(int i=0; i<height; i++){
+		delete objective_arr[i];
+	}
+	delete objective_arr;
+
+	for(int i=0; i<solution_vec_ptr->size(); i++){
+		delete solution_vec_ptr->at(i);
+	}
+	delete solution_vec_ptr;
+
+	return 0;
+}
+
+vector<Path*>* optimalFill(const Grid* objective_ptr, int K){
+	int height, width;
+
+	Grid *current_grid_ptr, *temp_grid_ptr;
+	Path *temp_path_ptr;
+	vector<Grid*> current_grid_vec, next_grid_vec;
+
+	vector<Path*> path_pqueue;
+	vector<vector<Path*>*> history_vec;
+
+	vector<Path*>* solution_vec_ptr = new vector<Path*>;
+
+	int n_injects = 0;
+	int parent_num;
+	char temp_char;
+	bool completed;
+
+	// initialize
+	height = objective_ptr->height;
+	width = objective_ptr->width;
+
 	temp_grid_ptr = gridPtrGen();
-	temp_grid_ptr->init(objective);
+	temp_grid_ptr->init(*objective_ptr);
 	current_grid_vec.push_back(temp_grid_ptr);
 
+	// iteration
 	while(1){
 		// process grids from previous iteration
 		for(int g=0; g<current_grid_vec.size(); g++){
@@ -121,7 +140,7 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 		vector<Path*>* temp_path_vec_ptr = new vector<Path*>;
 
 		sort(path_pqueue.begin(), path_pqueue.end(), mycomp);
-		
+
 		for(int i=0; i<path_pqueue.size(); i++){
 			temp_path_vec_ptr->push_back(path_pqueue.at(i));
 		}
@@ -169,16 +188,12 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 			}
 
 			if(completed == true){
-				// output result
-				cout << "Optimal result:" << endl;
-				cout << "number of injections =  " << n_injects << endl;
-				cout << "desired configuration = " << endl;
-				gridPrint(&objective);
-				cout << "injection paths = " << endl;
-
 				parent_num = g;
 				for(int i=history_vec.size()-1; i>=0; i--){
-					pathPrint(history_vec[i]->at(parent_num));
+					temp_path_ptr = pathPtrGen();
+					temp_path_ptr->init(*(history_vec[i]->at(parent_num)));
+					solution_vec_ptr->push_back(temp_path_ptr);
+
 					parent_num = history_vec[i]->at(parent_num)->parent;
 				}
 
@@ -202,6 +217,9 @@ void optimalFill(int height, int width, pair<int,int> inlet, pair<int,int> outle
 		}
 		delete history_vec[i];
 	}
+
+	// return solution
+	return solution_vec_ptr;
 }
 
 // BFS path search
@@ -260,6 +278,7 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 	
 			// check if outlet is reached
 			if(current_path_ptr->leaf == outlet){
+				//cout << "outlet reached" << endl; //debug
 				path_score = pathScore(current_path_ptr, current_grid_ptr);
 
 				// not a success if nothing is achieved
@@ -323,6 +342,7 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 			}
 
 			// explore
+			//cout << "exploring..." << endl; //debug
 			for(int t=0; t<4; t++){
 				i_next = current_path_ptr->leaf.first + direction[t];
 				j_next = current_path_ptr->leaf.second + direction[(t+3)%4];
@@ -333,15 +353,20 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 					if(current_path_ptr->get(i_next,j_next) == 'u'){ // unexplored
 						temp_char = current_grid_ptr->get(i_next, j_next);
 						if( temp_char == color[c] || temp_char == 'x'){ // required liquid == path liquid || don't care
+							//cout << "creating new path..." << endl; //debug
 							temp_path_ptr = pathPtrGen();
+							//cout << "done" << endl; //debug
 							temp_path_ptr->init(*current_path_ptr);
 
+							//cout << "updating new path..." << endl;
 							temp_path_ptr->set(i_next, j_next, 'e');
 							temp_path_ptr->leaf.first = i_next;
 							temp_path_ptr->leaf.second = j_next;
 
 							//pathPrint(temp_path_ptr); //debug
+							//cout << "pushing into bfs_path_queue..." << endl; //debug
 							bfs_path_queue.push(temp_path_ptr);
+							//cout << "done" << endl; //debug
 						}
 					}
 				}
@@ -356,6 +381,25 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 
 		} // end of BFS while loop
 	} // end of liquid color for loop
+}
+
+// print optimal solution
+void solutionPrint(const Grid* objective_ptr, const vector<Path*>* solution_vec_ptr){
+	if( solution_vec_ptr->empty() ){
+		cout << "Cannot find solution. Either the problem sucks or this program sucks. Or both." << endl;
+	}else{	// solution exists
+		cout << "Optimal result:" << endl;
+		
+		cout << "number of injections =  " << solution_vec_ptr->size() << endl;
+
+		cout << "desired configuration = " << endl;
+		gridPrint(objective_ptr);
+
+		cout << "injection paths = " << endl;
+		for(int i=0; i<solution_vec_ptr->size(); i++){
+			pathPrint(solution_vec_ptr->at(i));
+		}
+	}
 }
 
 // score for a path (higher == better)
