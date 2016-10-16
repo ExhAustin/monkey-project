@@ -12,7 +12,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-#include <queue>	// std::queue, std::priority_queue
+#include <queue>	// std::queue
+#include <stack>	// std::stack
 #include <algorithm> // std::sort
 
 #include "gridpath_vec.h"
@@ -22,7 +23,7 @@
 using namespace std;
 
 vector<Path*>* optimalFill(const Grid*,int);
-void pathBFS(vector<Path*>*,int,const Grid*,int);		// BFS path search
+void pathDFS(vector<Path*>*,int,const Grid*,int);		// DFS path search
 void solutionPrint(const Grid*, const vector<Path*>*);	// print optimal solution
 int pathScore(const Path*, const Grid*);	// score for a path (higher == better)
 void pathUpdate(const Path*, Grid*);		// updates a grid by tracing a path through it ('1' => 'x' or '0' => 'x')
@@ -60,6 +61,7 @@ int main(){
 	}
 
 	cin >> K;
+	K = 1;
 
 	// initialize objective grid from input data
 	objective.init(height, width, inlet, outlet);
@@ -121,10 +123,10 @@ vector<Path*>* optimalFill(const Grid* objective_ptr, int K){
 			current_grid_ptr = current_grid_vec[g];
 
 			// search for paths reaching outlet, and place K highest scoring paths into path_pqueue
-			cout << "BFS..." << endl; //debug
-			cout << path_pqueue.size() << endl;
-			pathBFS(&path_pqueue, K, current_grid_ptr, g);
-			cout << "BFS done." << endl; //debug
+			cout << "path_pqueue.size() = " << path_pqueue.size() << endl;
+			cout << "DFS..." << endl; //debug
+			pathDFS(&path_pqueue, K, current_grid_ptr, g);
+			cout << "DFS done." << endl; //debug
 		}
 
 		// increment number of injections
@@ -222,12 +224,12 @@ vector<Path*>* optimalFill(const Grid* objective_ptr, int K){
 	return solution_vec_ptr;
 }
 
-// BFS path search
+// DFS path search
 //	(Begins with *current_grid_ptr, find every possible path, and place them into *path_pqueue_ptr)
 //	(Only keeps the K best paths in *path_pqueue_ptr)
-void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr, int parent_num){
+void pathDFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr, int parent_num){
 	Path *current_path_ptr, *temp_path_ptr;
-	queue<Path*> bfs_path_queue;
+	stack<Path*> dfs_path_stack;
 
 	int height = current_grid_ptr->height;
 	int width = current_grid_ptr->width;
@@ -267,14 +269,15 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 		temp_path_ptr->color = color[c];
 		temp_path_ptr->set(inlet.first, inlet.second, 'e');
 
-		bfs_path_queue.push(temp_path_ptr);
+		dfs_path_stack.push(temp_path_ptr);
 
-		// BFS
-		while( !bfs_path_queue.empty() ){
+		// DFS
+		while( !dfs_path_stack.empty() ){
 			//cout << "loop begin" << endl; //debug
+			//cout << "dfs_path_stack.size() = " << dfs_path_stack.size() << endl;
 			// pop element
-			current_path_ptr = bfs_path_queue.front();
-			bfs_path_queue.pop();
+			current_path_ptr = dfs_path_stack.top();
+			dfs_path_stack.pop();
 	
 			// check if outlet is reached
 			if(current_path_ptr->leaf == outlet){
@@ -331,7 +334,7 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 						}else if(current_path_ptr->score < path_pqueue_ptr->at(i_min)->score){
 							delete current_path_ptr;
 						}else{
-							path_pqueue_ptr->push_back(current_path_ptr);
+							//path_pqueue_ptr->push_back(current_path_ptr);
 						}
 					}else{
 						path_pqueue_ptr->push_back(current_path_ptr);
@@ -346,7 +349,6 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 			for(int t=0; t<4; t++){
 				i_next = current_path_ptr->leaf.first + direction[t];
 				j_next = current_path_ptr->leaf.second + direction[(t+3)%4];
-				//cout << i_next << " , " << j_next << endl; //debug
 	
 				// expand to next tile if valid
 				if( i_next >= 0 && i_next < height && j_next >= 0 && j_next < width ){ // inside grid
@@ -364,8 +366,8 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 							temp_path_ptr->leaf.second = j_next;
 
 							//pathPrint(temp_path_ptr); //debug
-							//cout << "pushing into bfs_path_queue..." << endl; //debug
-							bfs_path_queue.push(temp_path_ptr);
+							//cout << "pushing into dfs_path_stack..." << endl; //debug
+							dfs_path_stack.push(temp_path_ptr);
 							//cout << "done" << endl; //debug
 						}
 					}
@@ -374,12 +376,12 @@ void pathBFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 
 			// delete current path
 			//cout << "deleting current_path_ptr" << endl; //debug
-			//cout << bfs_path_queue.size() << endl; //debug
+			//cout << dfs_path_stack.size() << endl; //debug
 			//cout << current_path_ptr->leaf.first << " , " << current_path_ptr->leaf.second << endl; //debug
 			delete current_path_ptr;	// <--fucking segmentation fault?
 			//cout << "loop end" << endl; //debug
 
-		} // end of BFS while loop
+		} // end of DFS while loop
 	} // end of liquid color for loop
 }
 
@@ -417,6 +419,8 @@ int pathScore(const Path* P_ptr, const Grid* G_ptr){
 					score -= 1;
 				}else if(temp == P_ptr->color){
 					score += gridsize;
+				}else{
+					score -= gridsize*gridsize;
 				}
 				//== ==
 			}
