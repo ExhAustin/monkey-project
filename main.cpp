@@ -272,15 +272,12 @@ void pathDFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 
 		// DFS
 		while( !dfs_path_stack.empty() ){
-			//cout << "loop begin" << endl; //debug
-			//cout << "dfs_path_stack.size() = " << dfs_path_stack.size() << endl;
 			// pop element
 			current_path_ptr = dfs_path_stack.top();
 			dfs_path_stack.pop();
 	
 			// check if outlet is reached
 			if(current_path_ptr->leaf == outlet){
-				//cout << "outlet reached" << endl; //debug
 				path_score = pathScore(current_path_ptr, current_grid_ptr);
 
 				// not a success if nothing is achieved
@@ -288,8 +285,6 @@ void pathDFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 					delete current_path_ptr;
 					continue;
 				}
-
-				//pathPrint(current_path_ptr); //debug
 
 				current_path_ptr->score = current_grid_ptr->score + path_score;
 				current_path_ptr->parent = parent_num;
@@ -344,7 +339,6 @@ void pathDFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 			}
 
 			// explore
-			//cout << "exploring..." << endl; //debug
 			for(int t=0; t<4; t++){
 				i_next = current_path_ptr->leaf.first + direction[t];
 				j_next = current_path_ptr->leaf.second + direction[(t+3)%4];
@@ -354,32 +348,21 @@ void pathDFS(vector<Path*>* path_pqueue_ptr, int K, const Grid* current_grid_ptr
 					if(current_path_ptr->get(i_next,j_next) == 'u'){ // unexplored
 						temp_char = current_grid_ptr->get(i_next, j_next);
 						if( temp_char == color[c] || temp_char == 'x'){ // required liquid == path liquid || don't care
-							//cout << "creating new path..." << endl; //debug
 							temp_path_ptr = pathPtrGen();
-							//cout << "done" << endl; //debug
 							temp_path_ptr->init(*current_path_ptr);
 
-							//cout << "updating new path..." << endl;
 							temp_path_ptr->set(i_next, j_next, 'e');
 							temp_path_ptr->leaf.first = i_next;
 							temp_path_ptr->leaf.second = j_next;
 
-							//pathPrint(temp_path_ptr); //debug
-							//cout << "pushing into dfs_path_stack..." << endl; //debug
 							dfs_path_stack.push(temp_path_ptr);
-							//cout << "done" << endl; //debug
 						}
 					}
 				}
 			}
 
 			// delete current path
-			//cout << "deleting current_path_ptr" << endl; //debug
-			//cout << dfs_path_stack.size() << endl; //debug
-			//cout << current_path_ptr->leaf.first << " , " << current_path_ptr->leaf.second << endl; //debug
-			delete current_path_ptr;	// <--fucking segmentation fault?
-			//cout << "loop end" << endl; //debug
-
+			delete current_path_ptr;
 		} // end of DFS while loop
 	} // end of liquid color for loop
 }
