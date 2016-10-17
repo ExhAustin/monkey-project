@@ -61,7 +61,6 @@ int main(){
 	}
 
 	cin >> K;
-	K = 1;
 
 	// initialize objective grid from input data
 	objective.init(height, width, inlet, outlet);
