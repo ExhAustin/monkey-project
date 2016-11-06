@@ -19,7 +19,7 @@ public:
 	bool operator<(const Grid&);
 
 protected:
-	vector< vector<int> > tiles;
+	vector< vector<char> > tiles;
 
 private:
 	Grid(const Grid& G){init(G);};	// copy constructor
